@@ -1,2 +1,6 @@
 streamlit
 pandas
+langchain-core
+PyPDF2
+google-generativeai
+matplotlib
