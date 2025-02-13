@@ -1,5 +1,6 @@
 import streamlit as st
 import os 
+import google.generativeai as genai
 import matplotlib.pyplot as plt
 from langchain_core.prompts import ChatPromptTemplate
 from PyPDF2 import PdfReader
@@ -18,6 +19,39 @@ model = get_model()
 st.title("📝 BEST-TALENT-AI")
 
 besoins = st.text_area("Entrez vos besoins ici :", placeholder="Entrez votre texte...")
+
+# CSS pour rapprocher le bouton de la zone de texte
+st.markdown(
+    """
+    <style>
+    div.stButton > button {
+        margin-top: -20px;  
+        background-color: #4CAF50; 
+        color: white; 
+        font-size: 16px; 
+        padding: 10px 24px; 
+        border-radius: 8px; 
+        border: none; 
+        cursor: pointer;
+        transition: background-color 0.3s ease; /
+    }
+    div.stButton > button:hover {
+        background-color: #45a049; 
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Bouton pour lancer l'analyse
+if st.button("Analyser 🚀"):
+    if besoins.strip():  # Vérifie si le texte n'est pas vide
+        st.success("Analyse en cours...")
+        # Ici, tu peux appeler ta fonction IA pour analyser les besoins
+        # Exemple : resultat = analyser_besoins_ia(besoins)
+        # st.write(resultat)
+    else:
+        st.warning("Veuillez entrer vos besoins avant de cliquer sur le bouton.")
 
 @st.cache_data
 def generer_offre(besoins):
@@ -38,7 +72,7 @@ offre = generer_offre(besoins)
 
 
 uploaded_files = st.file_uploader(
-    "Choose a CV file", accept_multiple_files=True
+    "Importer vos CVS ici", accept_multiple_files=True
 )
 
 contenus = {}
@@ -115,3 +149,22 @@ def afficher_scores_top_candidats(resultats_candidats):
 
 if resultats_candidats:
     x=afficher_scores_top_candidats(resultats_candidats)
+    
+ 
+ #  Génération des questions d'entretien
+    st.header("4. Questions d'entretien")
+    
+    def formuler_questions(cv, offre):
+        model = genai.GenerativeModel("gemini-pro")
+        prompt = f"Génère des questions d'entretien basées sur le CV suivant :\n{cv}\n\nen fonction de l'Offre d'emploi :\n{offre}"
+        reponse = model.generate_content(prompt)
+        return reponse.text.strip()
+
+    # Affichage des questions pour chaque candidat
+    for nom_cv, contenu_cv in contenus.items():
+        st.subheader(f"Questions pour {nom_cv}")
+        questions = formuler_questions(contenus, offre)
+        st.write(questions)
+
+else:
+    st.warning("Veuillez rédiger une offre d'emploi et charger les CVs pour continuer.")
