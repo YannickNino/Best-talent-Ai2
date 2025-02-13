@@ -91,9 +91,11 @@ Vous pouvez déployer cette application sur **Streamlit Sharing** ou **Streamlit
 ## Auteurs
 Yannick SONE SONE & Willy WAFFO
 
-## Contact : yannick.sone@groupe-esigelec.org & willy.waffo@groupe-esigelec.org
+## Contact : 
+yannick.sone@groupe-esigelec.org & willy.waffo@groupe-esigelec.org
 
-## GitHub :[YannickNino](https://github.com/YannickNino)
+## GitHub :
+[YannickNino](https://github.com/YannickNino)
 
 ## Licence
 Ce projet est sous licence MIT. Voir le fichier LICENSE pour plus de détails.
