@@ -1,57 +1,26 @@
 import streamlit as st
-import os 
-import google.generativeai as genai
+import os
 import matplotlib.pyplot as plt
 from langchain_core.prompts import ChatPromptTemplate
 from PyPDF2 import PdfReader
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
-
+# Configuration de l'API Google
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
 @st.cache_resource
 def get_model():
     from langchain_google_genai import ChatGoogleGenerativeAI
     return ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+
 model = get_model()
 
-st.title("📝 BEST-TALENT-AI")
+# Titre principal
+st.header('📝 BEST-TALENT-AI')
 
-besoins = st.text_area("Entrez vos besoins ici :", placeholder="Entrez votre texte...")
-
-# CSS pour rapprocher le bouton de la zone de texte
-st.markdown(
-    """
-    <style>
-    div.stButton > button {
-        margin-top: -20px;  
-        background-color: #4CAF50; 
-        color: white; 
-        font-size: 16px; 
-        padding: 10px 24px; 
-        border-radius: 8px; 
-        border: none; 
-        cursor: pointer;
-        transition: background-color 0.3s ease; /
-    }
-    div.stButton > button:hover {
-        background-color: #45a049; 
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# Bouton pour lancer l'analyse
-if st.button("Analyser 🚀"):
-    if besoins.strip():  # Vérifie si le texte n'est pas vide
-        st.success("Analyse en cours...")
-        # Ici, tu peux appeler ta fonction IA pour analyser les besoins
-        # Exemple : resultat = analyser_besoins_ia(besoins)
-        # st.write(resultat)
-    else:
-        st.warning("Veuillez entrer vos besoins avant de cliquer sur le bouton.")
+# Entrée des besoins
+besoins = st.text_area("Entrez vos besoins ici :", placeholder="Entrez vos besoins pour rédiger une offre...")
 
 @st.cache_data
 def generer_offre(besoins):
@@ -64,30 +33,27 @@ def generer_offre(besoins):
     response = model.invoke(prompt_template.invoke({"input": besoins}))
     return response
 
-
 if besoins:
     offre = generer_offre(besoins)
     st.write(offre.content)
-offre = generer_offre(besoins)
-
 
 uploaded_files = st.file_uploader(
-    "Importer vos CVS ici", accept_multiple_files=True
+    "Choisissez des fichiers de CV (PDF)", accept_multiple_files=True
 )
 
+# Extraction des contenus des CV
 contenus = {}
 for uploaded_file in uploaded_files:
     bytes_data = uploaded_file.read()
-    st.write("filename:", uploaded_file.name)
-    
+    st.write("Fichier chargé :", uploaded_file.name)
+
     reader = PdfReader(uploaded_file)
     contenu = ""
     for page in reader.pages:
-            contenu += page.extract_text() + "\n"
+        contenu += page.extract_text() + "\n"
     contenus[uploaded_file.name] = contenu
 
-
-
+# Classe pour analyser les CVs
 class Info(BaseModel):
     name: str = Field(description="Nom du candidat")
     note: int = Field(description="Note du CV du candidat en fonction de l'offre")
@@ -103,8 +69,6 @@ tagging_prompt = ChatPromptTemplate.from_template(
 
 llm = ChatGoogleGenerativeAI(temperature=0, model="gemini-2.0-flash").with_structured_output(Info)
 
-resultats_candidats = None
-
 @st.cache_data
 def analyser_cvs(contenus, offre):
     resultats = []
@@ -113,20 +77,22 @@ def analyser_cvs(contenus, offre):
         response = llm.invoke(prompt)
         resultats.append({
             "nom": response.name,
-            "note": response.note
+            "note": response.note,
+            "cv": contenu_cv  # Inclure le contenu du CV pour les questions d'entretien
         })
     return resultats
 
+# Analyse des CVs
 if 'offre' in locals() and 'contenus' in locals() and contenus:
     resultats_candidats = analyser_cvs(contenus, offre.content)
-    
+
     st.subheader("Résultats de l'analyse des CVs")
     for resultat in resultats_candidats:
         st.write(f"**Nom :** {resultat['nom']}, **Note :** {resultat['note']}")
 else:
     st.warning("Veuillez générer une offre et charger des CVs avant de procéder à l'analyse.")
 
-
+# Affichage des scores des meilleurs candidats
 def afficher_scores_top_candidats(resultats_candidats):
     no_candidat = st.slider('Nombre de candidats à représenter', 1, len(resultats_candidats))
 
@@ -146,25 +112,57 @@ def afficher_scores_top_candidats(resultats_candidats):
     plt.grid(axis="y", linestyle="--", alpha=0.7)
 
     st.pyplot(fig)
+    return resultats_trier
 
-if resultats_candidats:
-    x=afficher_scores_top_candidats(resultats_candidats)
-    
- 
- #  Génération des questions d'entretien
-    st.header("4. Questions d'entretien")
-    
-    def formuler_questions(cv, offre):
-        model = genai.GenerativeModel("gemini-pro")
-        prompt = f"Génère des questions d'entretien basées sur le CV suivant :\n{cv}\n\nen fonction de l'Offre d'emploi :\n{offre}"
-        reponse = model.generate_content(prompt)
-        return reponse.text.strip()
+# Classe pour générer les questions d'entretien
+class QuestionsEntretien(BaseModel):
+    nom: str = Field(description="Nom du candidat")
+    questions: list[str] = Field(description="Liste des questions d'entretien")
 
-    # Affichage des questions pour chaque candidat
-    for nom_cv, contenu_cv in contenus.items():
-        st.subheader(f"Questions pour {nom_cv}")
-        questions = formuler_questions(contenus, offre)
-        st.write(questions)
+questions_prompt = ChatPromptTemplate.from_template(
+    """
+    Génère des questions d'entretien personnalisées pour le candidat suivant en fonction de son CV et de l'offre :\n
+    Offre :\n{offre}\n
+    CV :\n{cv}\n
+    Nom du candidat :\n{nom}\n
+    Note :\n{note}\n
+    Ne retourne que les informations définies dans la classe QuestionsEntretien.
+    """
+)
 
+llm_questions = ChatGoogleGenerativeAI(temperature=0, model="gemini-2.0-flash").with_structured_output(QuestionsEntretien)
+
+@st.cache_data
+def generer_questions_entretien(resultats_trier, offre):
+    questions_par_candidat = []
+    for candidat in resultats_trier:
+        prompt = questions_prompt.invoke({
+            "nom": candidat['nom'],
+            "note": candidat['note'],
+            "cv": candidat['cv'],
+            "offre": offre
+        })
+        response = llm_questions.invoke(prompt)
+        questions_par_candidat.append({
+            "nom": response.nom,
+            "questions": response.questions
+        })
+    return questions_par_candidat
+
+# Affichage des questions d'entretien
+if 'resultats_candidats' in locals() and resultats_candidats:
+    resultats_trier = afficher_scores_top_candidats(resultats_candidats)
+
+    questions_entretien = generer_questions_entretien(resultats_trier, offre.content)
+
+    st.subheader("Questions d'entretien personnalisées")
+    for candidat_questions in questions_entretien:
+        st.write(f"### Candidat : {candidat_questions['nom']}")
+        for question in candidat_questions['questions']:
+            st.write(f"- {question}")
+        st.text_area(
+            f"Réponses de {candidat_questions['nom']}:",
+            placeholder=f"Écrire les réponses de {candidat_questions['nom']} ici..."
+        )
 else:
-    st.warning("Veuillez rédiger une offre d'emploi et charger les CVs pour continuer.")
+    st.warning("Veuillez analyser les CVs pour sélectionner des candidats et générer des questions d'entretien.")
