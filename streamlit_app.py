@@ -22,6 +22,40 @@ st.header('📝 BEST-TALENT-AI')
 # Entrée des besoins
 besoins = st.text_area("Entrez vos besoins ici :", placeholder="Entrez vos besoins pour rédiger une offre...")
 
+# CSS pour rapprocher le bouton de la zone de texte
+st.markdown(
+    """
+    <style>
+    div.stButton > button {
+        margin-top: -20px;  
+        background-color: #4CAF50; 
+        color: white; 
+        font-size: 16px; 
+        padding: 10px 24px; 
+        border-radius: 8px; 
+        border: none; 
+        cursor: pointer;
+        transition: background-color 0.3s ease; /
+    }
+    div.stButton > button:hover {
+        background-color: #45a049; 
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Bouton pour lancer l'analyse
+if st.button("Analyser 🚀"):
+    if besoins.strip():  # Vérifie si le texte n'est pas vide
+        st.success("Analyse en cours...")
+        # Ici, tu peux appeler ta fonction IA pour analyser les besoins
+        # Exemple : resultat = analyser_besoins_ia(besoins)
+        # st.write(resultat)
+    else:
+        st.warning("Veuillez entrer vos besoins avant de cliquer sur le bouton.")
+
+
 @st.cache_data
 def generer_offre(besoins):
     prompt_template = ChatPromptTemplate.from_messages(
